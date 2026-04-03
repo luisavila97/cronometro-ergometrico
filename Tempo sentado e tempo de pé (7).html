@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sit/Stand Chronometer</title>
+    <script type="text/javascript" nonce="056a3a632f3a429aa9d096fa0da" src="//local.adguard.org?ts=1773826566372&amp;type=content-script&amp;dmn=firebasestorage.googleapis.com&amp;url=https%3A%2F%2Ffirebasestorage.googleapis.com%2Fv0%2Fb%2Fworkona-prod.appspot.com%2Fo%2Ffiles%252FniI5LxV9E3hmqYDyx1iriZcPlSg2%252F3d4d3004-0fca-4133-9332-a36feb24b54d%252FTempo%2520sentado%2520e%2520tempo%2520de%2520p%25C3%25A9.html%3Falt%3Dmedia%26token%3Df859e735-3276-4ebb-82ba-96bab2a09665&amp;app=chrome.exe&amp;css=3&amp;js=1&amp;rel=0&amp;rji=0&amp;sbe=1&amp;stealth=0"></script><script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@700&family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0f172a',
+                        surface: '#1e293b',
+                        accent: '#a855f7',
+                        accentHover: '#9333ea',
+                        textMuted: '#94a3b8',
+                        textLight: '#f8fafc',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains+Mono', 'monospace'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow-x: hidden;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 2rem;
+        }
+
+        .timer-ring {
+            transition: stroke-dashoffset 0.1s linear;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+
+        .glow-accent {
+            text-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+        }
+
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .btn-press {
+            transition: transform 0.1s ease, background-color 0.2s ease;
+        }
+
+        .btn-press:active {
+            transform: scale(0.95);
+        }
+
+        /* Pulse animation for active state */
+        @keyframes soft-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .status-pulse {
+            animation: soft-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 font-sans">
+
+    <div class="max-w-xl mx-auto w-full">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="font-display text-3xl md:text-4xl font-bold tracking-tight text-white">
+                Sit/Stand <span class="text-accent">Chronometer</span>
+            </h1>
+            <p class="text-textMuted mt-2 font-medium">Optimize your workflow ergonomics</p>
+        </header>
+
+        <!-- Main Chronometer Display -->
+        <main class="glass-card p-8 md:p-12 mb-8 relative flex flex-col items-center">
+            
+            <!-- Progress Ring Container -->
+            <div class="relative flex items-center justify-center w-64 h-64 md:w-80 md:h-80 mb-6">
+                <!-- Background Circle -->
+                <svg class="absolute w-full h-full">
+                    <circle 
+                        cx="50%" cy="50%" r="48%" 
+                        stroke="rgba(255,255,255,0.05)" 
+                        stroke-width="8" 
+                        fill="none"
+                    />
+                    <circle 
+                        id="progress-circle"
+                        class="timer-ring"
+                        cx="50%" cy="50%" r="48%" 
+                        stroke="currentColor" 
+                        stroke-width="8" 
+                        fill="none"
+                        stroke-linecap="round"
+                        class="text-accent"
+                        style="stroke: #a855f7;"
+                    />
+                </svg>
+
+                <!-- Timer Content -->
+                <div class="z-10 text-center">
+                    <div id="activity-status" class="text-accent font-display text-2xl md:text-3xl font-extrabold tracking-widest status-pulse mb-1">
+                        SIT
+                    </div>
+                    <div id="timer-display" class="font-mono text-6xl md:text-7xl font-bold glow-accent text-white">
+                        45:00
+                    </div>
+                    <div id="finish-time" class="text-textMuted text-sm font-medium mt-4 opacity-0 transition-opacity duration-500">
+                        Finish at 00:00
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex gap-4 w-full max-w-xs">
+                <button id="start-btn" class="flex-1 bg-accent hover:bg-accentHover text-white font-bold py-4 rounded-2xl shadow-lg shadow-purple-500/20 btn-press uppercase tracking-wider">
+                    Start
+                </button>
+                <button id="reset-btn" class="flex-1 bg-surface border border-white/10 hover:bg-slate-700 text-white font-bold py-4 rounded-2xl btn-press uppercase tracking-wider">
+                    Reset
+                </button>
+            </div>
+        </main>
+
+        <!-- Configuration Section -->
+        <section class="glass-card p-6 md:p-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Sit Time Input -->
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold uppercase tracking-widest text-textMuted">Sit Duration (Min)</label>
+                    <div class="relative">
+                        <input type="number" id="sit-input" value="45" min="1" max="180" class="w-full bg-dark/50 border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-accent focus:outline-none text-white font-mono text-lg">
+                    </div>
+                </div>
+                <!-- Stand Time Input -->
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold uppercase tracking-widest text-textMuted">Stand Duration (Min)</label>
+                    <div class="relative">
+                        <input type="number" id="stand-input" value="15" min="1" max="180" class="w-full bg-dark/50 border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-accent focus:outline-none text-white font-mono text-lg">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toggle Initial Activity -->
+            <div class="mt-8 pt-6 border-t border-white/5">
+                <label class="block text-xs font-bold uppercase tracking-widest text-textMuted mb-4 text-center">Initial Activity</label>
+                <div class="flex bg-dark/50 p-1 rounded-2xl w-full max-w-sm mx-auto">
+                    <button id="set-sit" class="flex-1 py-3 rounded-xl font-bold transition-all duration-300 bg-accent text-white">SIT</button>
+                    <button id="set-stand" class="flex-1 py-3 rounded-xl font-bold transition-all duration-300 text-textMuted">STAND</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Audio Element -->
+    <audio id="beep-sound" preload="auto">
+        <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        // State Management
+        let timeLeft = 45 * 60;
+        let totalTime = 45 * 60;
+        let timerId = null;
+        let isRunning = false;
+        let currentActivity = 'SIT'; // SIT or STAND
+
+        // Elements
+        const timerDisplay = document.getElementById('timer-display');
+        const activityDisplay = document.getElementById('activity-status');
+        const finishDisplay = document.getElementById('finish-time');
+        const progressCircle = document.getElementById('progress-circle');
+        const startBtn = document.getElementById('start-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const sitInput = document.getElementById('sit-input');
+        const standInput = document.getElementById('stand-input');
+        const setSitBtn = document.getElementById('set-sit');
+        const setStandBtn = document.getElementById('set-stand');
+        const beepSound = document.getElementById('beep-sound');
+
+        // Circular Progress Logic
+        const radius = progressCircle.r.baseVal.value;
+        const circumference = radius * 2 * Math.PI;
+        progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+
+        function setProgress(percent) {
+            const offset = circumference - (percent / 100 * circumference);
+            progressCircle.style.strokeDashoffset = offset;
+        }
+
+        // Timer Logic
+        function updateDisplay() {
+            const mins = Math.floor(timeLeft / 60);
+            const secs = timeLeft % 60;
+            timerDisplay.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            
+            const percentage = (timeLeft / totalTime) * 100;
+            setProgress(percentage);
+
+            if (isRunning) {
+                updateFinishTime();
+            }
+        }
+
+        function updateFinishTime() {
+            const now = new Date();
+            // Adjust to Brasilia Time (-3)
+            const target = new Date(now.getTime() + timeLeft * 1000);
+            
+            const hours = target.getHours().toString().padStart(2, '0');
+            const minutes = target.getMinutes().toString().padStart(2, '0');
+            
+            finishDisplay.textContent = `Finish at ${hours}:${minutes}`;
+            finishDisplay.style.opacity = '1';
+        }
+
+        function startTimer() {
+            if (isRunning) {
+                clearInterval(timerId);
+                startBtn.textContent = 'Start';
+                startBtn.classList.replace('bg-orange-500', 'bg-accent');
+                finishDisplay.style.opacity = '0';
+                isRunning = false;
+            } else {
+                isRunning = true;
+                startBtn.textContent = 'Pause';
+                startBtn.classList.replace('bg-accent', 'bg-orange-500');
+                updateFinishTime();
+                
+                timerId = setInterval(() => {
+                    timeLeft--;
+                    if (timeLeft < 0) {
+                        clearInterval(timerId);
+                        beepSound.play();
+                        switchActivity();
+                    } else {
+                        updateDisplay();
+                    }
+                }, 1000);
+            }
+        }
+
+        function switchActivity() {
+            if (currentActivity === 'SIT') {
+                setActivity('STAND');
+            } else {
+                setActivity('SIT');
+            }
+            startTimer(); // Restart automatically for the next phase
+        }
+
+        function resetTimer() {
+            clearInterval(timerId);
+            isRunning = false;
+            startBtn.textContent = 'Start';
+            startBtn.classList.replace('bg-orange-500', 'bg-accent');
+            finishDisplay.style.opacity = '0';
+            
+            const mins = currentActivity === 'SIT' ? parseInt(sitInput.value) : parseInt(standInput.value);
+            timeLeft = mins * 60;
+            totalTime = timeLeft;
+            updateDisplay();
+        }
+
+        function setActivity(type) {
+            currentActivity = type;
+            activityDisplay.textContent = type;
+            
+            if (type === 'SIT') {
+                setSitBtn.classList.add('bg-accent', 'text-white');
+                setSitBtn.classList.remove('text-textMuted');
+                setStandBtn.classList.remove('bg-accent', 'text-white');
+                setStandBtn.classList.add('text-textMuted');
+                timeLeft = parseInt(sitInput.value) * 60;
+            } else {
+                setStandBtn.classList.add('bg-accent', 'text-white');
+                setStandBtn.classList.remove('text-textMuted');
+                setSitBtn.classList.remove('bg-accent', 'text-white');
+                setSitBtn.classList.add('text-textMuted');
+                timeLeft = parseInt(standInput.value) * 60;
+            }
+            totalTime = timeLeft;
+            updateDisplay();
+        }
+
+        // Event Listeners
+        startBtn.addEventListener('click', startTimer);
+        resetBtn.addEventListener('click', resetTimer);
+
+        setSitBtn.addEventListener('click', () => {
+            if (!isRunning) setActivity('SIT');
+        });
+
+        setStandBtn.addEventListener('click', () => {
+            if (!isRunning) setActivity('STAND');
+        });
+
+        sitInput.addEventListener('change', () => {
+            if (!isRunning && currentActivity === 'SIT') {
+                timeLeft = parseInt(sitInput.value) * 60;
+                totalTime = timeLeft;
+                updateDisplay();
+            }
+        });
+
+        standInput.addEventListener('change', () => {
+            if (!isRunning && currentActivity === 'STAND') {
+                timeLeft = parseInt(standInput.value) * 60;
+                totalTime = timeLeft;
+                updateDisplay();
+            }
+        });
+
+        // Initialize
+        updateDisplay();
+    </script>
+</body>
+</html>
